@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RailLink Reservation System</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f7f9fb;
+        }
+        .card {
+            box-shadow: 0 8px 16px -4px rgba(0, 0, 0, 0.15);
+            transition: all 0.3s ease;
+        }
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 20px -6px rgba(0, 0, 0, 0.2);
+        }
+        .seat-btn {
+            @apply p-3 rounded-xl font-bold transition duration-200;
+        }
+        #status-display {
+            max-height: 400px;
+        }
+        .selected-train {
+            @apply ring-4 ring-blue-500 ring-offset-2;
+        }
+        .route-search-form {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="min-h-screen p-4 md:p-8 flex flex-col items-center">
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <h1 class="text-4xl md:text-5xl font-extrabold text-blue-800 mb-2">RailLink Express</h1>
+            <p class="text-lg text-gray-600" id="app-subtitle">Connecting you to your destination</p>
+        </div>
+
+        <!-- Loading Indicator -->
+        <div id="loading-indicator" class="text-xl text-blue-500 font-semibold mb-4">
+            <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-blue-500 inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            Loading...
+        </div>
+
+        <!-- LOGIN VIEW -->
+        <div id="login-view" class="w-full max-w-md">
+            <div class="card bg-white p-8 rounded-xl border border-gray-200 mb-6">
+                <h2 class="text-3xl font-bold text-gray-800 mb-6 text-center">Welcome Back</h2>
+                
+                <div class="space-y-4">
+                    <!-- User Login -->
+                    <div class="border border-gray-200 rounded-lg p-4">
+                        <h3 class="text-lg font-semibold text-gray-700 mb-3">Passenger Login</h3>
+                        <div class="space-y-3">
+                            <input type="text" id="user-username" placeholder="Username" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+                            <input type="password" id="user-password" placeholder="Password" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+                            <button onclick="loginUser()" class="w-full bg-blue-600 text-white font-semibold p-3 rounded-lg hover:bg-blue-700 transition duration-150">
+                                Sign In as Passenger
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Admin Login -->
+                    <div class="border border-gray-200 rounded-lg p-4">
+                        <h3 class="text-lg font-semibold text-gray-700 mb-3">Admin Login</h3>
+                        <div class="space-y-3">
+                            <input type="text" id="admin-username" placeholder="Admin Username" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500">
+                            <input type="password" id="admin-password" placeholder="Admin Password" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500">
+                            <button onclick="loginAdmin()" class="w-full bg-red-600 text-white font-semibold p-3 rounded-lg hover:bg-red-700 transition duration-150">
+                                Sign In as Admin
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Demo Credentials -->
+                <div class="mt-6 p-4 bg-gray-50 rounded-lg">
+                    <h4 class="font-semibold text-gray-700 mb-2">Demo Credentials:</h4>
+                    <div class="text-sm text-gray-600 space-y-1">
+                        <p><strong>Passenger:</strong> user1 / user123</p>
+                        <p><strong>Admin:</strong> admin / admin123</p>
+                        <p class="text-xs text-gray-500 mt-2">New users will be automatically registered</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MAIN APPLICATION VIEW -->
+        <div id="main-app-view" class="w-full max-w-6xl hidden">
+            <!-- Navigation Bar -->
+            <nav class="bg-white shadow-lg rounded-xl p-4 mb-8">
+                <div class="flex justify-between items-center">
+                    <div class="flex items-center space-x-4">
+                        <span class="text-xl font-bold text-blue-800">RailLink</span>
+                        <span id="user-role-badge" class="px-3 py-1 rounded-full text-sm font-semibold"></span>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <span id="welcome-message" class="text-gray-700"></span>
+                        <button onclick="logout()" class="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition duration-150">
+                            Logout
+                        </button>
+                    </div>
+                </div>
+            </nav>
+
+            <!-- ADMIN DASHBOARD -->
+            <div id="admin-dashboard" class="hidden">
+                <div class="mb-8 p-6 bg-yellow-50 rounded-xl">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-3xl font-bold text-yellow-800 flex items-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.24a4.002 4.002 0 01.442 4.47l-2.035 3.522A2 2 0 0115 15.545V19a2 2 0 01-2 2h-2a2 2 0 01-2-2v-3.455a2 2 0 01-.065-.545l-2.035-3.522a4.002 4.002 0 01.442-4.47l.95-.949A4.002 4.002 0 018.618 4h6.764a4.002 4.002 0 013.236 1.764l.95.95z" />
+                            </svg>
+                            Admin Train Management
+                        </h2>
+                    </div>
+                    
+                    <!-- Add New Train Form -->
+                    <div class="bg-white p-6 rounded-lg shadow-inner mb-6">
+                        <h3 class="text-xl font-semibold mb-4 text-yellow-700">Add New Train</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-6 gap-4">
+                            <input type="text" id="train-name-input" placeholder="Train Name" class="p-3 border rounded-lg md:col-span-2">
+                            <input type="text" id="train-source-input" placeholder="Source Station" class="p-3 border rounded-lg">
+                            <input type="text" id="train-destination-input" placeholder="Destination Station" class="p-3 border rounded-lg">
+                            <input type="number" id="train-capacity-input" placeholder="Total Seats" min="1" class="p-3 border rounded-lg">
+                            <button onclick="addTrain()" class="bg-yellow-500 text-white font-semibold p-3 rounded-lg hover:bg-yellow-600 transition">Create Train</button>
+                        </div>
+                    </div>
+
+                    <!-- List of All Trains -->
+                    <h3 class="text-2xl font-bold text-gray-800 mb-4">All Trains</h3>
+                    <div id="admin-train-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <!-- Train cards will be rendered here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- USER DASHBOARD -->
+            <div id="user-dashboard" class="hidden">
+                <!-- Route Search Section -->
+                <div class="route-search-form text-white p-6 rounded-xl mb-8">
+                    <h2 class="text-3xl font-bold mb-6">Find Your Perfect Journey</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <input type="text" id="search-source" placeholder="From Station" class="p-3 rounded-lg text-gray-800">
+                        <input type="text" id="search-destination" placeholder="To Station" class="p-3 rounded-lg text-gray-800">
+                        <input type="date" id="search-date" class="p-3 rounded-lg text-gray-800">
+                        <button onclick="searchTrains()" class="bg-white text-purple-600 font-bold p-3 rounded-lg hover:bg-gray-100 transition">
+                            Search Trains
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Search Results -->
+                <div id="search-results" class="mb-8">
+                    <h3 class="text-2xl font-bold text-gray-800 mb-4">Available Trains</h3>
+                    <div id="train-selection-list" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- Train cards will be rendered here -->
+                    </div>
+                </div>
+
+                <!-- My Bookings Section -->
+                <div id="my-bookings" class="bg-white rounded-xl p-6 shadow-lg">
+                    <h3 class="text-2xl font-bold text-gray-800 mb-4">My Bookings</h3>
+                    <div id="bookings-list" class="space-y-4">
+                        <!-- Bookings will be listed here -->
+                    </div>
+                </div>
+
+                <!-- Reservation UI (Shows when train is selected) -->
+                <div id="reservation-ui" class="hidden mt-8">
+                    <div class="bg-blue-50 p-6 rounded-xl mb-6">
+                        <h2 class="text-3xl font-bold text-blue-800 mb-2">
+                            Booking for <span id="selected-train-name" class="underline"></span>
+                        </h2>
+                        <p class="text-gray-600" id="selected-train-route"></p>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                        <!-- Booking Form -->
+                        <div class="lg:col-span-2 space-y-6">
+                            <div class="card bg-white p-6 rounded-xl">
+                                <h3 class="text-2xl font-bold text-green-600 mb-4">Book New Ticket</h3>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <input type="text" id="passenger-name" placeholder="Full Name" class="p-3 border border-gray-300 rounded-lg">
+                                    <input type="number" id="passenger-age" placeholder="Age" min="1" max="120" class="p-3 border border-gray-300 rounded-lg">
+                                    <select id="passenger-gender" class="p-3 border border-gray-300 rounded-lg">
+                                        <option value="">Select Gender</option>
+                                        <option value="Male">Male</option>
+                                        <option value="Female">Female</option>
+                                        <option value="Other">Other</option>
+                                    </select>
+                                    <button onclick="handleBook()" class="bg-green-500 text-white font-semibold py-3 rounded-lg hover:bg-green-600 transition">
+                                        Confirm Booking
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Train Status -->
+                        <div class="lg:col-span-1">
+                            <div class="card bg-gray-800 text-white p-6 rounded-xl h-full">
+                                <h3 class="text-2xl font-bold text-yellow-400 mb-4">Train Status</h3>
+                                <div id="status-display" class="space-y-4 overflow-y-auto">
+                                    <!-- Status will be shown here -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Message Modal -->
+        <div id="message-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 hidden items-center justify-center z-50">
+            <div class="bg-white p-6 rounded-xl max-w-sm w-full text-center shadow-2xl">
+                <div id="modal-icon" class="text-4xl mb-4"></div>
+                <h3 id="modal-title" class="text-xl font-bold mb-2 text-gray-800"></h3>
+                <p id="modal-body" class="mb-4 text-gray-600"></p>
+                <button onclick="hideMessage()" class="w-full bg-blue-500 text-white font-semibold py-2 rounded-lg hover:bg-blue-600 transition">
+                    OK
+                </button>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // --- DATA MANAGEMENT ---
+        const STORAGE_KEY = 'railway_system_enhanced';
+        const ADMIN_USERNAME = 'admin';
+        const ADMIN_PASSWORD = 'admin123';
+
+        let currentUser = null;
+        let isAdmin = false;
+        let allTrains = [];
+        let allUsers = [];
+        let selectedTrainId = null;
+        let searchResults = [];
+
+        // Initialize data structure
+        function initializeData() {
+            const savedData = localStorage.getItem(STORAGE_KEY);
+            if (savedData) {
+                return JSON.parse(savedData);
+            } else {
+                const initialData = {
+                    users: [
+                        { id: 'user1', username: 'user1', password: 'user123', name: 'John Doe', type: 'user' }
+                    ],
+                    trains: [
+                        {
+                            id: 'train-001',
+                            name: 'Rajdhani Express',
+                            source: 'Delhi',
+                            destination: 'Mumbai',
+                            capacity: 50,
+                            bookedSeats: {
+                                '1': { passengerName: 'John Doe', age: 30, gender: 'Male', pnr: 'PNR001', userId: 'user1' },
+                                '5': { passengerName: 'Jane Smith', age: 25, gender: 'Female', pnr: 'PNR002', userId: 'user1' }
+                            }
+                        },
+                        {
+                            id: 'train-002', 
+                            name: 'Shatabdi Express',
+                            source: 'Kolkata',
+                            destination: 'Chennai',
+                            capacity: 40,
+                            bookedSeats: {}
+                        },
+                        {
+                            id: 'train-003',
+                            name: 'Duronto Express',
+                            source: 'Delhi',
+                            destination: 'Bangalore',
+                            capacity: 60,
+                            bookedSeats: {}
+                        }
+                    ]
+                };
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(initialData));
+                return initialData;
+            }
+        }
+
+        function saveData(data) {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        }
+
+        function loadData() {
+            const data = initializeData();
+            allTrains = data.trains || [];
+            allUsers = data.users || [];
+        }
+
+        // --- AUTHENTICATION ---
+        function loginUser() {
+            const username = document.getElementById('user-username').value.trim();
+            const password = document.getElementById('user-password').value.trim();
+
+            if (!username || !password) {
+                showMessage('error', 'Login Failed', 'Please enter both username and password');
+                return;
+            }
+
+            const user = allUsers.find(u => u.username === username && u.password === password);
+            if (user) {
+                currentUser = user;
+                isAdmin = false;
+                showMainApp();
+                showMessage('success', 'Welcome Back!', `Hello ${user.name || user.username}`);
+            } else {
+                // Auto-register new user
+                const newUser = {
+                    id: 'user-' + Date.now(),
+                    username: username,
+                    password: password,
+                    name: username,
+                    type: 'user'
+                };
+                
+                const data = initializeData();
+                data.users.push(newUser);
+                saveData(data);
+                
+                currentUser = newUser;
+                isAdmin = false;
+                loadData(); // Reload data with new user
+                showMainApp();
+                showMessage('success', 'Registration Successful', `Welcome to RailLink, ${username}!`);
+            }
+        }
+
+        function loginAdmin() {
+            const username = document.getElementById('admin-username').value.trim();
+            const password = document.getElementById('admin-password').value.trim();
+
+            if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
+                currentUser = { username: ADMIN_USERNAME, name: 'Administrator', type: 'admin' };
+                isAdmin = true;
+                showMainApp();
+                showMessage('success', 'Admin Access', 'Welcome to Admin Dashboard');
+            } else {
+                showMessage('error', 'Admin Login Failed', 'Invalid admin credentials');
+            }
+        }
+
+        function logout() {
+            currentUser = null;
+            isAdmin = false;
+            selectedTrainId = null;
+            showLoginView();
+        }
+
+        // --- TRAIN MANAGEMENT ---
+        function addTrain() {
+            const name = document.getElementById('train-name-input').value.trim();
+            const source = document.getElementById('train-source-input').value.trim();
+            const destination = document.getElementById('train-destination-input').value.trim();
+            const capacity = parseInt(document.getElementById('train-capacity-input').value);
+
+            if (!name || !source || !destination || isNaN(capacity) || capacity < 1) {
+                showMessage('error', 'Input Error', 'Please fill all fields with valid data');
+                return;
+            }
+
+            const newTrain = {
+                id: 'train-' + Date.now(),
+                name: name,
+                source: source,
+                destination: destination,
+                capacity: capacity,
+                bookedSeats: {}
+            };
+
+            const data = initializeData();
+            data.trains.push(newTrain);
+            saveData(data);
+            loadData();
+
+            // Clear form
+            document.getElementById('train-name-input').value = '';
+            document.getElementById('train-source-input').value = '';
+            document.getElementById('train-destination-input').value = '';
+            document.getElementById('train-capacity-input').value = '';
+
+            showMessage('success', 'Train Added', `${name} from ${source} to ${destination} has been created`);
+            renderAdminDashboard();
+        }
+
+        function deleteTrain(trainId) {
+            const data = initializeData();
+            data.trains = data.trains.filter(t => t.id !== trainId);
+            saveData(data);
+            loadData();
+            renderAdminDashboard();
+            showMessage('success', 'Train Deleted', 'Train has been removed from the system');
+        }
+
+        // --- TRAIN SEARCH & BOOKING ---
+        function searchTrains() {
+            const source = document.getElementById('search-source').value.trim();
+            const destination = document.getElementById('search-destination').value.trim();
+            const date = document.getElementById('search-date').value;
+
+            if (!source || !destination) {
+                showMessage('error', 'Search Error', 'Please enter both source and destination stations');
+                return;
+            }
+
+            searchResults = allTrains.filter(train => 
+                train.source.toLowerCase().includes(source.toLowerCase()) && 
+                train.destination.toLowerCase().includes(destination.toLowerCase())
+            );
+
+            renderSearchResults();
+        }
+
+        function selectTrain(trainId) {
+            selectedTrainId = trainId;
+            renderReservationUI();
+        }
+
+        function handleBook() {
+            if (!selectedTrainId) return;
+
+            const name = document.getElementById('passenger-name').value.trim();
+            const age = parseInt(document.getElementById('passenger-age').value);
+            const gender = document.getElementById('passenger-gender').value;
+
+            if (!name || isNaN(age) || age < 1 || age > 120 || !gender) {
+                showMessage('error', 'Input Error', 'Please fill all passenger details correctly');
+                return;
+            }
+
+            const train = allTrains.find(t => t.id === selectedTrainId);
+            if (!train) {
+                showMessage('error', 'Error', 'Train not found');
+                return;
+            }
+
+            const bookedSeats = train.bookedSeats || {};
+            if (Object.keys(bookedSeats).length >= train.capacity) {
+                showMessage('error', 'Booking Failed', 'Train is fully booked');
+                return;
+            }
+
+            // Find available seat
+            let assignedSeat = -1;
+            for (let i = 1; i <= train.capacity; i++) {
+                if (!bookedSeats.hasOwnProperty(String(i))) {
+                    assignedSeat = i;
+                    break;
+                }
+            }
+
+            if (assignedSeat === -1) {
+                showMessage('error', 'Booking Failed', 'No available seats found');
+                return;
+            }
+
+            const pnr = 'PNR' + Date.now().toString().slice(-8);
+            bookedSeats[String(assignedSeat)] = {
+                passengerName: name,
+                age: age,
+                gender: gender,
+                pnr: pnr,
+                userId: currentUser.id
+            };
+
+            // Save booking
+            const data = initializeData();
+            const trainIndex = data.trains.findIndex(t => t.id === selectedTrainId);
+            if (trainIndex !== -1) {
+                data.trains[trainIndex].bookedSeats = bookedSeats;
+                saveData(data);
+                loadData();
+            }
+
+            // Clear form
+            document.getElementById('passenger-name').value = '';
+            document.getElementById('passenger-age').value = '';
+            document.getElementById('passenger-gender').value = '';
+
+            showMessage('success', 'Booking Confirmed!', 
+                `Seat ${assignedSeat} booked for ${name}\nPNR: ${pnr}`);
+            
+            renderReservationUI();
+            renderUserBookings();
+        }
+
+        function cancelBooking(pnr) {
+            const data = initializeData();
+            let cancelled = false;
+
+            for (let train of data.trains) {
+                if (train.bookedSeats) {
+                    for (let seat in train.bookedSeats) {
+                        if (train.bookedSeats[seat].pnr === pnr && train.bookedSeats[seat].userId === currentUser.id) {
+                            delete train.bookedSeats[seat];
+                            cancelled = true;
+                            break;
+                        }
+                    }
+                }
+                if (cancelled) break;
+            }
+
+            if (cancelled) {
+                saveData(data);
+                loadData();
+                renderUserBookings();
+                if (selectedTrainId) renderReservationUI();
+                showMessage('success', 'Cancelled', 'Your booking has been cancelled');
+            } else {
+                showMessage('error', 'Error', 'Booking not found or you are not authorized');
+            }
+        }
+
+        // --- RENDERING FUNCTIONS ---
+        function renderAdminDashboard() {
+            const listElement = document.getElementById('admin-train-list');
+            
+            if (allTrains.length === 0) {
+                listElement.innerHTML = '<p class="text-gray-600 italic col-span-3 text-center py-8">No trains added yet</p>';
+                return;
+            }
+
+            const html = allTrains.map(train => {
+                const bookedCount = Object.keys(train.bookedSeats || {}).length;
+                const availableCount = train.capacity - bookedCount;
+
+                return `
+                    <div class="card bg-white p-6 rounded-xl border border-gray-200">
+                        <h4 class="text-xl font-bold text-gray-800 mb-2">${train.name}</h4>
+                        <p class="text-gray-600 mb-2">${train.source} → ${train.destination}</p>
+                        <div class="flex justify-between items-center mb-4">
+                            <span class="text-sm font-semibold ${availableCount > 0 ? 'text-green-600' : 'text-red-600'}">
+                                Seats: ${availableCount}/${train.capacity} available
+                            </span>
+                        </div>
+                        <button onclick="deleteTrain('${train.id}')" 
+                                class="w-full bg-red-500 text-white font-semibold py-2 rounded-lg hover:bg-red-600 transition">
+                            Delete Train
+                        </button>
+                    </div>
+                `;
+            }).join('');
+            
+            listElement.innerHTML = html;
+        }
+
+        function renderSearchResults() {
+            const listElement = document.getElementById('train-selection-list');
+            
+            if (searchResults.length === 0) {
+                listElement.innerHTML = '<p class="text-gray-600 italic col-span-2 text-center py-8">No trains found for this route</p>';
+                return;
+            }
+
+            const html = searchResults.map(train => {
+                const bookedCount = Object.keys(train.bookedSeats || {}).length;
+                const availableCount = train.capacity - bookedCount;
+                const isSelected = train.id === selectedTrainId;
+                
+                const cardClasses = isSelected 
+                    ? 'card bg-blue-50 selected-train border-blue-500' 
+                    : 'card bg-white hover:bg-gray-50 border-gray-200';
+
+                return `
+                    <div class="${cardClasses} p-6 rounded-xl border cursor-pointer" onclick="selectTrain('${train.id}')">
+                        <h4 class="text-xl font-bold text-gray-800 mb-2">${train.name}</h4>
+                        <p class="text-gray-600 mb-2">${train.source} → ${train.destination}</p>
+                        <div class="flex justify-between items-center">
+                            <span class="text-lg font-bold ${availableCount > 0 ? 'text-green-600' : 'text-red-600'}">
+                                ${availableCount} seats available
+                            </span>
+                            <button class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition">
+                                ${isSelected ? 'Selected' : 'Select'}
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            listElement.innerHTML = html;
+        }
+
+        function renderReservationUI() {
+            const uiContainer = document.getElementById('reservation-ui');
+            const statusDisplay = document.getElementById('status-display');
+            const selectedTrainNameEl = document.getElementById('selected-train-name');
+            const selectedTrainRouteEl = document.getElementById('selected-train-route');
+
+            if (!selectedTrainId) {
+                uiContainer.classList.add('hidden');
+                return;
+            }
+
+            const train = allTrains.find(t => t.id === selectedTrainId);
+            if (!train) {
+                uiContainer.classList.add('hidden');
+                return;
+            }
+
+            uiContainer.classList.remove('hidden');
+            selectedTrainNameEl.textContent = train.name;
+            selectedTrainRouteEl.textContent = `${train.source} to ${train.destination}`;
+            
+            const { capacity, bookedSeats } = train;
+            const bookedCount = Object.keys(bookedSeats || {}).length;
+            const availableCount = capacity - bookedCount;
+
+            let html = `
+                <div class="text-lg mb-4 border-b border-gray-600 pb-2">
+                    <p>Capacity: <span class="text-yellow-400 font-bold">${capacity}</span></p>
+                    <p>Booked: <span class="text-red-400 font-bold">${bookedCount}</span></p>
+                    <p>Available: <span class="text-green-400 font-bold">${availableCount}</span></p>
+                </div>
+            `;
+            
+            // Seat Map
+            html += '<p class="text-sm font-semibold text-gray-400 mb-2">SEAT MAP:</p>';
+            html += '<div class="flex flex-wrap gap-2 mb-6">';
+            
+            for (let i = 1; i <= capacity; i++) {
+                const isBooked = bookedSeats && bookedSeats.hasOwnProperty(String(i));
+                const classes = isBooked ? 'bg-red-700 text-white' : 'bg-green-700 text-white hover:bg-green-600';
+                html += `<span class="seat-btn text-xs ${classes}">S${i}${isBooked ? ' (B)' : ''}</span>`;
+            }
+            html += '</div>';
+
+            // Booked Passengers
+            if (bookedCount > 0) {
+                html += '<p class="text-sm font-semibold text-gray-400 mb-2">BOOKED PASSENGERS:</p>';
+                html += '<div class="space-y-2">';
+                for (let seat in bookedSeats) {
+                    const p = bookedSeats[seat];
+                    html += `
+                        <div class="bg-gray-700 p-3 rounded-lg">
+                            <div class="flex justify-between items-center">
+                                <span class="text-sm">${p.passengerName} (${p.age}, ${p.gender})</span>
+                                <span class="text-xs text-yellow-300">Seat ${seat}</span>
+                            </div>
+                            <div class="text-xs text-gray-400 mt-1">PNR: ${p.pnr}</div>
+                        </div>
+                    `;
+                }
+                html += '</div>';
+            }
+
+            statusDisplay.innerHTML = html;
+        }
+
+        function renderUserBookings() {
+            const bookingsList = document.getElementById('bookings-list');
+            let userBookings = [];
+
+            // Find all bookings for current user
+            allTrains.forEach(train => {
+                if (train.bookedSeats) {
+                    for (let seat in train.bookedSeats) {
+                        const booking = train.bookedSeats[seat];
+                        if (booking.userId === currentUser.id) {
+                            userBookings.push({
+                                train: train,
+                                seat: seat,
+                                booking: booking
+                            });
+                        }
+                    }
+                }
+            });
+
+            if (userBookings.length === 0) {
+                bookingsList.innerHTML = '<p class="text-gray-500 italic text-center py-4">No bookings found</p>';
+                return;
+            }
+
+            const html = userBookings.map(item => `
+                <div class="border border-gray-200 rounded-lg p-4">
+                    <div class="flex justify-between items-center mb-2">
+                        <h4 class="font-bold text-lg">${item.train.name}</h4>
+                        <span class="bg-green-100 text-green-800 px-2 py-1 rounded text-sm">Confirmed</span>
+                    </div>
+                    <p class="text-gray-600 mb-2">${item.train.source} → ${item.train.destination}</p>
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <span class="font-semibold">${item.booking.passengerName}</span> (${item.booking.age}, ${item.booking.gender})
+                            <br>
+                            <span class="text-sm text-gray-500">Seat ${item.seat} • PNR: ${item.booking.pnr}</span>
+                        </div>
+                        <button onclick="cancelBooking('${item.booking.pnr}')" 
+                                class="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition">
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+
+            bookingsList.innerHTML = html;
+        }
+
+        // --- VIEW MANAGEMENT ---
+        function showLoginView() {
+            document.getElementById('login-view').classList.remove('hidden');
+            document.getElementById('main-app-view').classList.add('hidden');
+            document.getElementById('loading-indicator').classList.add('hidden');
+        }
+
+        function showMainApp() {
+            document.getElementById('login-view').classList.add('hidden');
+            document.getElementById('main-app-view').classList.remove('hidden');
+            document.getElementById('loading-indicator').classList.add('hidden');
+
+            // Update UI based on user type
+            document.getElementById('welcome-message').textContent = `Welcome, ${currentUser.name || currentUser.username}`;
+            
+            const roleBadge = document.getElementById('user-role-badge');
+            if (isAdmin) {
+                roleBadge.textContent = 'Administrator';
+                roleBadge.className = 'px-3 py-1 rounded-full text-sm font-semibold bg-red-100 text-red-800';
+                document.getElementById('admin-dashboard').classList.remove('hidden');
+                document.getElementById('user-dashboard').classList.add('hidden');
+                renderAdminDashboard();
+            } else {
+                roleBadge.textContent = 'Passenger';
+                roleBadge.className = 'px-3 py-1 rounded-full text-sm font-semibold bg-blue-100 text-blue-800';
+                document.getElementById('admin-dashboard').classList.add('hidden');
+                document.getElementById('user-dashboard').classList.remove('hidden');
+                renderUserBookings();
+            }
+        }
+
+        // --- MESSAGE SYSTEM ---
+        function showMessage(type, title, message) {
+            const modal = document.getElementById('message-modal');
+            const icon = document.getElementById('modal-icon');
+            const modalTitle = document.getElementById('modal-title');
+            const modalBody = document.getElementById('modal-body');
+
+            icon.innerHTML = type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️';
+            modalTitle.textContent = title;
+            modalBody.textContent = message;
+
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function hideMessage() {
+            document.getElementById('message-modal').classList.add('hidden');
+        }
+
+        // --- INITIALIZATION ---
+        function initializeApp() {
+            loadData();
+            setTimeout(() => {
+                document.getElementById('loading-indicator').classList.add('hidden');
+                showLoginView();
+                
+                // Set default date to tomorrow
+                const tomorrow = new Date();
+                tomorrow.setDate(tomorrow.getDate() + 1);
+                document.getElementById('search-date').valueAsDate = tomorrow;
+            }, 1000);
+        }
+
+        // Start the application
+        initializeApp();
+    </script>
+</body>
+</html>
